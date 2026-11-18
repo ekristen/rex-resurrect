@@ -5,9 +5,26 @@
 #                             add it to init.lua, and reload the configuration.
 #                             Run it again to update.
 #   ./install.sh --uninstall  undo that and stop the tracker
+#
+# It also runs without a checkout, in which case it downloads resurrect.lua:
+#
+#   curl -fsSL https://raw.githubusercontent.com/ekristen/rex-resurrect/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/ekristen/rex-resurrect/main/install.sh | sh -s -- --uninstall
+#
+# REX_RESURRECT_REF picks the branch or tag to download (default: main).
 set -eu
 
-here=$(cd "$(dirname "$0")" && pwd)
+url=https://raw.githubusercontent.com/ekristen/rex-resurrect/${REX_RESURRECT_REF:-main}/resurrect.lua
+
+# The directory of this script when it is run from a checkout; empty when it
+# is piped into sh.
+here=
+case $0 in
+  */install.sh|install.sh)
+    dir=$(cd "$(dirname "$0")" && pwd)
+    if [ -f "$dir/resurrect.lua" ]; then here=$dir; fi
+    ;;
+esac
 line='require("resurrect").setup{}'
 
 if [ -n "${REX_CONFIG:-}" ]; then
@@ -38,8 +55,8 @@ find_rex() {
 rex=$(find_rex) || rex=
 
 if [ "${1:-}" = "--uninstall" ]; then
-  if [ -n "$rex" ]; then
-    "$rex" --autostart=false do "$here/resurrect.lua" cmd=stop || true
+  if [ -n "$rex" ] && [ -f "$dest" ]; then
+    "$rex" --autostart=false do "$dest" cmd=stop || true
   fi
   if [ -e "$dest" ] || [ -L "$dest" ]; then
     rm -f "$dest"
@@ -64,11 +81,30 @@ fi
 
 mkdir -p "$config_dir"
 
-# Remove first, so that a symlink left by an older install is replaced
-# rather than written through.
+# Write to a temporary file first, so that a failed download leaves the
+# installed copy alone, and so that a symlink left by an older install is
+# replaced rather than written through.
+tmp=$dest.tmp.$$
+trap 'rm -f "$tmp"' EXIT
+rm -f "$tmp"
+if [ -n "$here" ]; then
+  cp "$here/resurrect.lua" "$tmp"
+  from=$here/resurrect.lua
+else
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "curl is needed to download resurrect.lua" >&2
+    exit 1
+  fi
+  curl -fsSL "$url" -o "$tmp"
+  from=$url
+fi
+if ! grep -q 'rex-resurrect' "$tmp"; then
+  echo "$from does not look like resurrect.lua; nothing installed" >&2
+  exit 1
+fi
 rm -f "$dest"
-cp "$here/resurrect.lua" "$dest"
-echo "copied resurrect.lua to $dest"
+mv -f "$tmp" "$dest"
+echo "installed $from as $dest"
 
 if [ -f "$init" ] && grep -qF 'require("resurrect")' "$init"; then
   echo "$init already loads rex-resurrect"

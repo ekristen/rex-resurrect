@@ -13,7 +13,18 @@ those shells.
 
 Requires Rex on macOS or Linux, on the machine that runs the Rex server.
 
-rex-resurrect is one file. Copy it next to your `init.lua` and load it:
+```sh
+curl -fsSL https://raw.githubusercontent.com/ekristen/rex-resurrect/main/install.sh | sh
+```
+
+The script downloads `resurrect.lua` into `~/.config/rex`, adds one line to
+`init.lua`, and reloads the configuration. It finds `rex` when it is not on
+your PATH. Run the same command again to update.
+
+### By hand
+
+rex-resurrect is one file. From a checkout, copy it next to your `init.lua`
+and load it:
 
 ```sh
 mkdir -p ~/.config/rex
@@ -22,10 +33,8 @@ echo 'require("resurrect").setup{}' >> ~/.config/rex/init.lua
 rex config reload
 ```
 
-`./install.sh` does the same, and finds `rex` when it is not on your PATH.
-
-To update, copy the new `resurrect.lua` over the old one (or run `./install.sh`
-again), then:
+`./install.sh` in a checkout does the same with the local file. To update by
+hand, copy the new `resurrect.lua` over the old one, then:
 
 ```sh
 rex config reload
@@ -58,8 +67,10 @@ ln -s "/Applications/Rex Beta.app/Contents/Helpers/Rex Server.rex/Contents/MacOS
 ### Uninstall
 
 ```sh
-./install.sh --uninstall
+curl -fsSL https://raw.githubusercontent.com/ekristen/rex-resurrect/main/install.sh | sh -s -- --uninstall
 ```
+
+or `./install.sh --uninstall` from a checkout.
 
 This stops the tracker, removes the copy and the line in `init.lua`, and
 leaves the state directory (`~/.local/state/rex-resurrect`) in place.
