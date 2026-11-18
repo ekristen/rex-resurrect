@@ -683,7 +683,15 @@ end
 
 -- The server's own binary and command line, as seen from a command it runs.
 local function parent_process()
-  local bin = exec({ "sh", "-c", "readlink /proc/$PPID/exe 2>/dev/null || ps -o comm= -p $PPID" })
+  -- On Linux, a binary replaced by an upgrade while the server runs reads as
+  -- "/usr/bin/rex (deleted)". The new binary is at the same path, so drop
+  -- the suffix, and fall back to PATH when nothing executable is there.
+  local bin = exec({ "sh", "-c", [[
+b=$(readlink "/proc/$PPID/exe" 2>/dev/null) || b=$(ps -o comm= -p "$PPID")
+b=${b% (deleted)}
+[ -x "$b" ] || b=$(command -v rex 2>/dev/null) || b=
+printf '%s' "$b"
+]] })
   local args = exec({ "sh", "-c", "ps -o args= -p $PPID" })
   return bin and bin:gsub("%s+$", ""), args or ""
 end
